@@ -18,8 +18,31 @@ class KategoriBarangResource extends Resource
     protected static ?string $model = KategoriBarang::class;
     protected static ?string $modelLabel = 'Kategori Barang';
     protected static ?string $pluralModelLabel = 'Kategori Barang';
+    protected static ?string $navigationGroup = 'Management';
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    public static function canViewAny(): bool
+    {
+        return true; 
+    }
+
+    // CUMA ADMIN yang boleh nambah barang baru
+    public static function canCreate(): bool
+    {
+        return auth()->user()->peran === 'admin';
+    }
+
+    // CUMA ADMIN yang boleh ngedit barang (termasuk ngubah stok manual)
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return auth()->user()->peran === 'admin';
+    }
+
+    // CUMA ADMIN yang boleh hapus barang
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return auth()->user()->peran === 'admin';
+    }
 
     public static function form(Form $form): Form
     {

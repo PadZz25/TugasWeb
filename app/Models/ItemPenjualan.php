@@ -10,6 +10,7 @@ class ItemPenjualan extends Model
     protected $primaryKey = 'id_item_penjualan';
     public $timestamps = false;
     protected $guarded = [];
+    
 
     // Relasi balik ke Nota
     public function nota()

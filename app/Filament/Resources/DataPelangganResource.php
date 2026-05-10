@@ -18,6 +18,7 @@ class DataPelangganResource extends Resource
     protected static ?string $model = DataPelanggan::class;
     protected static ?string $modelLabel = 'Data Pelanggan';
     protected static ?string $pluralModelLabel = 'Data Pelanggan';
+    protected static ?string $navigationGroup = 'management kontak';
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
@@ -45,7 +46,7 @@ class DataPelangganResource extends Resource
             ]);
     }
 
-    public static function table(Table $table): Table
+   public static function table(Table $table): Table
     {
         return $table
             ->columns([
@@ -60,16 +61,52 @@ class DataPelangganResource extends Resource
                     
                 \Filament\Tables\Columns\TextColumn::make('total_hutang')
                     ->label('Total Hutang')
-                    ->money('IDR') // Langsung format Rupiah
+                    ->money('IDR')
                     ->sortable()
-                    ->color(fn ($state): string => $state > 0 ? 'danger' : 'success') // Merah kalau ada utang, hijau kalau lunas
+                    ->color(fn ($state): string => $state > 0 ? 'danger' : 'success')
                     ->weight('bold'),
             ])
             ->filters([
                 //
             ])
             ->actions([
+                // TOMBOL EDIT BAWAAN
                 \Filament\Tables\Actions\EditAction::make(),
+                
+                // TOMBOL BARU: BAYAR HUTANG
+                \Filament\Tables\Actions\Action::make('bayar_hutang')
+                    ->label('Bayar Hutang')
+                    ->icon('heroicon-m-banknotes') // Kasih icon duit
+                    ->color('success') // Kasih warna ijo biar seger
+                    ->visible(fn ($record) => $record->total_hutang > 0) // Cuma muncul kalau utangnya lebih dari 0
+                    ->form([
+                        \Filament\Forms\Components\TextInput::make('nominal_bayar')
+                            ->label('Nominal Pembayaran')
+                            ->numeric()
+                            ->prefix('Rp')
+                            ->required()
+                            // Kasir gak bisa masukin angka lebih gede dari sisa utang
+                            ->maxValue(fn ($record) => $record->total_hutang) 
+                            ->helperText(fn ($record) => 'Sisa hutang saat ini: Rp ' . number_format($record->total_hutang, 0, ',', '.')),
+                    ])
+                    ->action(function ($record, array $data) {
+                        // 1. Logic kamu yang lama buat ngurangin saldo hutang di tabel pelanggan (tetep biarin)
+                        $record->update([
+                            'total_hutang' => $record->total_hutang - $data['nominal_bayar'],
+                        ]);
+
+                         // 2. LOGIC TAMBAHAN: Update status di tabel Nota Penjualan
+                        // Kita cari semua nota milik pelanggan ini yang statusnya masih 'belum_lunas'
+                        \App\Models\NotaPenjualan::where('id_pelanggan', $record->id_pelanggan)
+                            ->where('status_bayar', 'belum_lunas')
+                            ->update(['status_bayar' => 'lunas']);
+
+                        // Kasih notifikasi biar asik
+                        \Filament\Notifications\Notification::make()
+                            ->title('Hutang Dibayar & Status Nota Terupdate!')
+                            ->success()
+                            ->send();
+                    })
             ])
             ->bulkActions([
                 \Filament\Tables\Actions\BulkActionGroup::make([

@@ -22,6 +22,7 @@ class NotaPenjualanResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart'; 
     protected static ?string $modelLabel = 'Transaksi Kasir';
     protected static ?string $pluralModelLabel = 'Transaksi Kasir';
+    protected static ?string $navigationGroup = 'Transaksi & keuangan';
 
     public static function form(Form $form): Form
     {
@@ -49,9 +50,24 @@ class NotaPenjualanResource extends Resource
 
                         Forms\Components\Select::make('id_pelanggan')
                             ->relationship('pelanggan', 'nama')
-                            ->label('Pelanggan (Opsional)')
+                            ->label(fn (Get $get) => $get('metode_bayar') === 'hutang' ? 'Pelanggan (Wajib Diisi!)' : 'Pelanggan (Opsional)')
                             ->searchable()
-                            ->placeholder('Pilih jika member/ngutang...'),
+                            ->placeholder('Pilih atau tambah baru...')
+                            ->required(fn (Get $get) => $get('metode_bayar') === 'hutang')
+                            // INI DIA MAGIC-NYA: Bikin form pop-up buat nambah pelanggan baru
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('nama')
+                                    ->label('Nama Pelanggan Baru')
+                                    ->required()
+                                    ->maxLength(255),
+                                    
+                                Forms\Components\TextInput::make('telepon')
+                                    ->label('Nomor Telepon (Opsional)')
+                                    ->tel()
+                                    ->maxLength(255),
+                                    
+                                // Total hutang gak usah dimasukin sini, biarin otomatis 0 dari database-nya
+                            ]),
 
                         Forms\Components\DateTimePicker::make('tanggal')
                             ->default(now())
@@ -65,6 +81,7 @@ class NotaPenjualanResource extends Resource
                                 'hutang' => 'Hutang',
                             ])
                             ->default('tunai')
+                            ->live() // KUNCI PENTING: Biar ngasih tau kolom lain kalau dia lagi diubah
                             ->required(),
 
                         Forms\Components\Select::make('status_bayar')
@@ -85,10 +102,11 @@ class NotaPenjualanResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('id_barang')
                                     ->relationship('barang', 'nama')
-                                    ->label('Pilih Barang')
-                                    ->searchable()
+                                    ->label('Pilih Barang / Scan Barcode') // Ubah labelnya biar kasir ngeh
+                                    // INI MAGIC-NYA: Masukin nama kolomnya dalam format array
+                                    ->searchable(['nama', 'barcode']) 
                                     ->required()
-                                    ->disableOptionsWhenSelectedInSiblingRepeaterItems() // Biar gak bisa milih barang yang sama 2x
+                                    ->disableOptionsWhenSelectedInSiblingRepeaterItems() // Fitur kerenmu tetep aman
                                     ->live() // Nyalain radar "Reactivity"
                                     // Begitu barang dipilih, langsung tarik harganya dari database
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {
@@ -219,8 +237,15 @@ class NotaPenjualanResource extends Resource
             ])
             ->defaultSort('tanggal', 'desc')
             ->actions([
+                \Filament\Tables\Actions\Action::make('cetak_struk')
+                    ->label('Cetak')
+                    ->icon('heroicon-o-printer')
+                    ->color('info')
+                    ->url(fn ($record) => route('cetak.struk', $record->id_nota))
+                    ->openUrlInNewTab(), // Buka di tab baru biar dashboard gak ketutup
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                
             ]);
     }
 

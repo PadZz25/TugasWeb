@@ -12,14 +12,21 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Hash;
 
 class KaryawanResource extends Resource
 {
     protected static ?string $model = Karyawan::class;
     protected static ?string $modelLabel = 'Karyawan';
     protected static ?string $pluralModelLabel = 'Karyawan';
+    protected static ?string $navigationGroup = 'management kontak';
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    public static function canViewAny(): bool
+    {
+        // Cuma karyawan dengan peran 'admin' yang boleh lihat menu ini
+        return auth()->user()->peran === 'admin'; 
+    }
 
     public static function form(Form $form): Form
     {
@@ -45,13 +52,14 @@ class KaryawanResource extends Resource
                     ->required(),
 
                 \Filament\Forms\Components\TextInput::make('password_hash')
+                    ->password() // Bikin jadi mode titik-titik rahasia
                     ->label('Password')
-                    ->password()
-                    ->revealable() // Biar ada tombol intip mata
-                    ->required(fn (\Filament\Resources\Pages\Page $livewire): bool => $livewire instanceof \Filament\Resources\Pages\CreateRecord)
-                    ->dehydrateStateUsing(fn ($state) => \Illuminate\Support\Facades\Hash::make($state))
-                    ->dehydrated(fn ($state) => filled($state))
-                    ->helperText('Kosongkan jika tidak ingin mengubah password saat edit data.'),
+                    ->revealable() // Kasih tombol "Mata" biar karyawan bisa ngintip pas ngetik password baru
+                    ->required(fn (string $context): bool => $context === 'create') // Wajib diisi cuma pas BIKIN karyawan baru
+                    ->formatStateUsing(fn () => null)
+                    ->dehydrateStateUsing(fn ($state) => Hash::make($state)) // Otomatis nge-Bcrypt sebelum masuk database
+                    ->dehydrated(fn (?string $state): bool => filled($state)) // CUMA disimpen kalau kotaknya diisi! Kalau kosong, hiraukan.
+                    ->helperText('Kosongkan jika tidak ingin mengubah password.'),
             ]);
     }
 

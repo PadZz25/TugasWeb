@@ -28,4 +28,24 @@ class NotaPenjualan extends Model
     {
         return $this->hasMany(ItemPenjualan::class, 'id_nota', 'id_nota');
     }
+
+    // ... relasi yang sebelumnya udah ada (karyawan, pelanggan, item)
+
+    // CCTV buat mantau tiap ada transaksi baru yang disimpan
+    protected static function booted()
+    {
+        static::created(function ($nota) {
+            // Kalau metode bayarnya 'hutang' dan kasir milih pelanggannya
+            if ($nota->metode_bayar === 'hutang' && $nota->id_pelanggan != null) {
+                
+                // Panggil data pelanggannya
+                $pelanggan = $nota->pelanggan;
+                
+                // Tambahin total tagihan nota ini ke total hutang pelanggan
+                $pelanggan->total_hutang += $nota->total_akhir;
+                $pelanggan->save();
+            }
+        });
+    }
+
 }
