@@ -110,7 +110,7 @@ class NotaPenjualanResource extends Resource
                                     ->live() // Nyalain radar "Reactivity"
                                     // Begitu barang dipilih, langsung tarik harganya dari database
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                        $barang = KatalogBarang::find($state);
+                                        $barang = \App\Models\KatalogBarang::find($state);
                                         if ($barang) {
                                             $set('harga_jual_saat_itu', $barang->harga_jual);
                                             $set('hpp_saat_itu', $barang->harga_beli);
@@ -119,6 +119,17 @@ class NotaPenjualanResource extends Resource
                                             $jumlah = $get('jumlah') ?? 1;
                                             $set('subtotal', $barang->harga_jual * $jumlah);
                                         }
+
+                                        $items = $get('../../item') ?? [];
+                                        $totalBelanja = 0;
+
+                                        foreach ($items as $item) {
+                                            $totalBelanja += (float) ($item['subtotal'] ?? 0);
+                                        }
+
+                                        $set('../../total_belanja', $totalBelanja);
+                                        $diskon = (float) ($get('../../diskon') ?? 0);
+                                        $set('../../total_akhir', $totalBelanja - $diskon);
                                     }),
 
                                 Forms\Components\TextInput::make('jumlah')
@@ -131,6 +142,16 @@ class NotaPenjualanResource extends Resource
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {
                                         $harga = $get('harga_jual_saat_itu') ?? 0;
                                         $set('subtotal', $harga * $state);
+                                        $items = $get('../../item') ?? [];
+                                        $totalBelanja = 0;
+
+                                        foreach ($items as $item){
+                                            $totalBelanja += (float) ($item['subtotal'] ?? 0);
+                                        }
+
+                                        $set('../../total_belanja', $totalBelanja);
+                                        $diskon = (float) ($get('../../diskon') ?? 0);
+                                        $set('../../total_akhir', $totalBelanja - $diskon);
                                     }),
 
                                 Forms\Components\TextInput::make('harga_jual_saat_itu')
