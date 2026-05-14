@@ -5,7 +5,8 @@ namespace App\Filament\Pages\Auth;
 use Filament\Pages\Auth\Login as BaseLogin;
 use Filament\Forms\Components\Component;
 use Filament\Forms\Components\TextInput;
-use Illuminate\Support\Facades\Auth;
+use Filament\Notifications\Notification; // Tambahin ini
+use Illuminate\Validation\ValidationException; // Tambahin ini
 
 class Login extends BaseLogin
 {
@@ -14,7 +15,7 @@ class Login extends BaseLogin
         return [
             'form' => $this->makeForm()
                 ->schema([
-                    $this->getLoginFormComponent(), // Ini bakal manggil method di bawah
+                    $this->getLoginFormComponent(),
                     $this->getPasswordFormComponent(),
                     $this->getRememberFormComponent(),
                 ])
@@ -24,8 +25,8 @@ class Login extends BaseLogin
 
     protected function getLoginFormComponent(): Component
     {
-        return TextInput::make('username') // Ganti name jadi username
-            ->label('Username') // Nah, labelnya udah jadi Username nih!
+        return TextInput::make('username')
+            ->label('Username')
             ->required()
             ->autocomplete()
             ->autofocus()
@@ -35,8 +36,23 @@ class Login extends BaseLogin
     protected function getCredentialsFromFormData(array $data): array
     {
         return [
-            'username' => $data['username'], // Kasih tau Laravel buat nyari kolom username
+            'username' => $data['username'],
             'password' => $data['password'],
         ];
+    }
+
+    // --- INI PEMBENAHANNYA: SIHIR NOTIFIKASI GAGAL ---
+    protected function throwFailureValidationException(): never
+    {
+        Notification::make()
+            ->title('Login Gagal!')
+            ->body('Username atau password anda salah, coba cek lagi ya.')
+            ->danger() // Warna merah
+            ->persistent() // Biar nggak ilang sendiri sebelum di-close
+            ->send();
+
+        throw ValidationException::withMessages([
+            'data.username' => __('filament-panels::pages/auth/login.messages.failed'),
+        ]);
     }
 }
